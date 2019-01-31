@@ -1,0 +1,360 @@
+---
+title: "scRNAseq induced neurons"
+author: "Joachim"
+date: "December 22, 2017"
+output: 
+  html_document: 
+    theme: cerulean
+    toc: yes
+---
+
+##########################################################
+################         LIBRARIES        ################
+##########################################################
+
+```{r LOAD LIBRARIES, warning=FALSE, message=FALSE}
+
+pacman::p_load(rio, tidyverse, RColorBrewer, readxl, edgeR)
+
+```
+
+##########################################################
+################      CUSTOM FUNCTIONS    ################
+##########################################################
+
+```{r CUSTOM FUNCTIONS, warning=FALSE, message=FALSE}
+#--------------------------Read data------------------------------
+readat <- function(id) {
+  pid = paste0("C:/Users/joachim/Desktop/Projects/scRNAseq.iN/Figure.Data/Figure.1/", id)
+  dat = import(pid)
+  dat = dat %>% remove_rownames %>% column_to_rownames(var = names(dat)[1])
+}
+
+readex <- function(id, sheet) {
+  pid = paste0("C:/Users/joachim/Desktop/Projects/scRNAseq.iN/Figure.Data/Figure.1/", id)
+  dat = read_excel(pid, sheet = sheet)
+}
+
+#----------------------------Theme1--------------------------------
+theme_jo <- function(base_size = 12){
+  theme_classic(base_size = base_size) +
+    theme(
+      legend.key = element_blank(), 
+      strip.background = element_blank(),
+      strip.text = element_text(size = 20, color = "grey10"),
+      plot.title = element_blank(), 
+      axis.title = element_text(size = 30, color = "grey10"), 
+      axis.text = element_text(size = 25, color = "grey10"), 
+      legend.title = element_blank(), 
+      legend.text = element_blank(),
+      axis.line = element_line(size = 1.1, color = "grey10"),
+      axis.ticks = element_line(size = 1.1, color = "grey10"),
+      axis.ticks.length = unit(0.3, "cm"),
+      legend.position = "none")
+}
+
+#----------------------------Theme2--------------------------------
+theme_blank = function(base_size = 12){
+  theme_jo(base_size = base_size) +
+    theme(
+      axis.text = element_blank(),
+      axis.title = element_blank(),
+      panel.background = element_blank(),
+      strip.text = element_blank()
+    )
+}
+```
+
+##########################################################
+#################        FIGURE 1C       #################
+##########################################################
+
+```{r FIGURE 1C,  warning=FALSE, message=FALSE}
+#----------------------------Figure1C--------------------------------
+#read IF Time-course data
+read.list = list()
+for (i in 1:4){
+  read.list[[i]] = readex("IF.time.course.xlsx", i)}
+dat.IF.tc = read.list[[3]] %>%
+  mutate(Sample = factor(Sample, levels = c("FIB", "Ci", "TFi")),
+         Day = factor(Day, levels = c("9dpi", "21dpi")),
+         Marker = factor(Marker, levels = c("YFP", "TUBB", "MAP2")))
+dat.IF.tc.sum = summarise(group_by(dat.IF.tc, ID), Mean = mean(Count), STDEV = sd(Count)) %>%
+  inner_join(dat.IF.tc, by = "ID") %>%
+  select(-c(Exp, Count)) %>%
+  mutate(Sample = factor(Sample, levels = c("FIB", "Ci", "TFi")),
+         Day = factor(Day, levels = c("9dpi", "21dpi")),
+         Marker = factor(Marker, levels = c("YFP", "TUBB", "MAP2"))) %>%
+  unique %>%
+  split(.$Day)
+dat.IF.tc$Sample = factor(paste0(dat.IF.tc$Sample, "."), levels = c("FIB.", "Ci.", "TFi."))
+dat.IF.tc = split(dat.IF.tc, dat.IF.tc$Day)
+
+#create color palette
+my.pal.IF.T.fill = c("FIB" = "grey40", "Ci" = "#b92025", "TFi" = "#0d6fbc", "FIB." = "grey90", "Ci." = "grey90", "TFi." ="grey90")
+my.pal.IF.T.col = c("FIB" = "grey20", "Ci" = "grey20", "TFi" = "grey20", "FIB." = "grey20", "Ci." = "grey20", "TFi." = "grey20")
+my.pal.IF.T.shape = c("1" = 21, "2" = 21, "3" = 21, "4" = 21)
+
+#plot 9 dpi
+ggplot(dat.IF.tc.sum[[1]], aes(Group, Mean, fill = Sample, color = Sample)) +
+  geom_errorbar(aes(ymin = Mean - STDEV, ymax = Mean + STDEV, color = Sample),
+                stat = "identity", position = position_dodge(0.95), width = 0.7, size = 0.8) +
+  geom_bar(stat = "identity", position = position_dodge(0.95), width = 0.8, size = 0.8) +
+  geom_point(data = dat.IF.tc[[1]], aes(Group, Count, fill = Sample, shape = as.factor(Exp)), 
+             color = "grey10", size = 4, position = position_dodge(0.95), stroke = 0.6) +
+  scale_fill_manual(values = my.pal.IF.T.fill) +
+  scale_color_manual(values = my.pal.IF.T.col) +
+  scale_shape_manual(values = my.pal.IF.T.shape) +
+  scale_y_continuous(breaks = c(0, 30, 60, 90, 120), expand = c(0, 0), limits = c(0, 125)) +
+  theme_jo()
+
+#plot 21 dpi
+ggplot(dat.IF.tc.sum[[2]], aes(Group, Mean, fill = Sample, color = Sample)) +
+  geom_errorbar(aes(ymin = Mean - STDEV, ymax = Mean + STDEV, color = Sample),
+                stat = "identity", position = position_dodge(0.95), width = 0.7, size = 0.8) +
+  geom_bar(stat = "identity", position = position_dodge(0.95), width = 0.8, size = 0.8) +
+  geom_point(data = dat.IF.tc[[2]], aes(Group, Count, fill = Sample, shape = as.factor(Exp)), 
+             color = "grey10", size = 4, position = position_dodge(0.95), stroke = 0.6) +
+  scale_fill_manual(values = my.pal.IF.T.fill) +
+  scale_color_manual(values = my.pal.IF.T.col) +
+  scale_shape_manual(values = my.pal.IF.T.shape) +
+  scale_y_continuous(breaks = c(0, 30, 60, 90, 120), expand = c(0, 0), limits = c(0, 125)) +
+  theme_jo()
+
+
+dat.IF = read.list[[4]]
+x = dat.IF$TFi.GABA
+y = dat.IF$Ci.GABA
+
+var.test(x,y)
+t.test(x,y)
+```
+
+##########################################################
+#################       FIGURE 1D-F      #################
+##########################################################
+
+```{r FIGURE S1D, warning=FALSE, message=FALSE, results='asis'}
+#----------------------------Figure1D--------------------------------
+#read data
+read.list = list()
+for (i in 1:12) {
+  read.list[[i]] = readex("neuron.profiling.xlsx", i)}
+
+dat.pan = read.list[[6]] %>%
+  mutate(Sample = factor(Sample, levels = c("Ci", "TFi")),
+         Day = factor(Day, levels = c("4dpi", "7dpi", "14dpi", "21dpi")),
+         Marker = factor(Marker, levels = c("MAP2", "NCAM", "NEUN", "SYN1")))
+dat.pan.sum = summarise(group_by(dat.pan, ID), Mean = mean(Count), STDEV = sd(Count)) %>%
+  inner_join(dat.pan, by = "ID") %>%
+  select(-c(Exp, Count)) %>%
+  mutate(Sample = factor(Sample, levels = c("Ci", "TFi")),
+         Day = factor(Day, levels = c("4dpi", "7dpi", "14dpi", "21dpi")),
+         Marker = factor(Marker, levels = c("MAP2", "NCAM", "NEUN", "SYN1"))) %>%
+  unique %>%
+  split(.$Sample)
+dat.pan$Marker = factor(paste0(dat.pan$Marker, "."), levels = c("MAP2.", "NCAM.", "NEUN.", "SYN1."))
+dat.pan = split(dat.pan, dat.pan$Sample)
+
+#color palette
+my.pal = colorRampPalette(c("#0D6EBB", "#BFDDFF"))(4)
+my.pal.PCR.fill = c("MAP2" = my.pal[1], "NCAM" = my.pal[2], "NEUN" = my.pal[3], "SYN1" = my.pal[4],
+                     "MAP2." = "grey90", "NCAM." = "grey90", "NEUN." ="grey90", "SYN1." = "grey90")
+my.pal.PCR.col = c("MAP2" = "black", "NCAM" = "black", "NEUN" = "black", "SYN1" = "black",
+                     "MAP2." = "grey20", "NCAM." = "grey20", "NEUNi." ="grey20", "SYN1" = "grey20")
+my.pal.PCR.shape = c("1" = 21, "2" = 21, "3" = 21)
+
+#plot
+ggplot(dat.pan.sum[[2]], aes(Day, Mean, fill = Marker, color = Marker)) +
+  geom_errorbar(aes(ymin = Mean - STDEV, ymax = Mean + STDEV, color = Marker),
+                stat = "identity", position = position_dodge(0.95), width = 0.7, size = 0.8) +
+  geom_bar(stat = "identity", position = position_dodge(0.95), width = 0.8, size = 0.8) +
+  geom_point(data = dat.pan[[2]], aes(Day, Count, fill = Marker, shape = as.factor(Exp)), 
+             color = "grey10", size = 3, position = position_dodge(0.95), stroke = 0.6) +
+  scale_fill_manual(values = my.pal.PCR.fill) +
+  scale_color_manual(values = my.pal.PCR.col) +
+  scale_shape_manual(values = my.pal.PCR.shape) +
+  ylim(c(0, 7)) +
+  theme_jo()
+
+#----------------------------Figure1E--------------------------------
+dat.nsub = read.list[[8]] %>%
+  mutate(Sample = factor(Sample, levels = c("Ci", "TFi")),
+         Day = factor(Day, levels = c("4dpi", "7dpi", "14dpi", "21dpi")),
+         Marker = factor(Marker, levels = c("GLUT", "GABA", "TH", "CHAT")))
+dat.nsub.sum = summarise(group_by(dat.nsub, ID), Mean = mean(Count), STDEV = sd(Count)) %>%
+  inner_join(dat.nsub, by = "ID") %>%
+  select(-c(Exp, Count)) %>%
+  mutate(Sample = factor(Sample, levels = c("Ci", "TFi")),
+         Day = factor(Day, levels = c("4dpi", "7dpi", "14dpi", "21dpi")),
+         Marker = factor(Marker, levels = c("GLUT", "GABA", "TH", "CHAT"))) %>%
+  unique %>%
+  split(.$Sample)
+dat.nsub$Marker = factor(paste0(dat.nsub$Marker, "."), levels = c("GLUT.", "GABA.", "TH.", "CHAT."))
+dat.nsub = split(dat.nsub, dat.nsub$Sample)
+
+#color palette
+my.pal = colorRampPalette(c("#f4a306", "#faf1e1"))(4)
+my.pal.PCR.fill = c("GLUT" = my.pal[1], "GABA" = my.pal[2], "TH" = my.pal[3], "CHAT" = my.pal[4],
+                     "GLUT." = "grey90", "GABA." = "grey90", "TH." ="grey90", "CHAT." = "grey90")
+my.pal.PCR.col = c("GLUT" = "black", "GABA" = "black", "TH" = "black", "CHAT" = "black",
+                     "GLUT." = "grey20", "GABA." = "grey20", "TH." ="grey20", "CHAT" = "grey20")
+my.pal.PCR.shape = c("1" = 21, "2" = 21, "3" = 21)
+
+#plot
+ggplot(dat.nsub.sum[[2]], aes(Day, Mean, fill = Marker, color = Marker)) +
+  geom_errorbar(aes(ymin = Mean - STDEV, ymax = Mean + STDEV, color = Marker),
+                stat = "identity", position = position_dodge(0.95), width = 0.7, size = 0.8) +
+  geom_bar(stat = "identity", position = position_dodge(0.95), width = 0.8, size = 0.8) +
+  geom_point(data = dat.nsub[[2]], aes(Day, Count, fill = Marker, shape = as.factor(Exp)), 
+             color = "grey10", size = 3, position = position_dodge(0.95), stroke = 0.6) +
+  scale_fill_manual(values = my.pal.PCR.fill) +
+  scale_color_manual(values = my.pal.PCR.col) +
+  scale_shape_manual(values = my.pal.PCR.shape) +
+  ylim(c(0, 9)) +
+  theme_jo()
+
+#----------------------------Figure1F--------------------------------
+dat.fib = read.list[[10]] %>%
+  mutate(Sample = factor(Sample, levels = c("Ci", "TFi")),
+         Day = factor(Day, levels = c("4dpi", "7dpi", "14dpi", "21dpi")),
+         Marker = factor(Marker, levels = c("VIM", "SNAI")))
+dat.fib.sum = summarise(group_by(dat.fib, ID), Mean = mean(Count), STDEV = sd(Count)) %>%
+  inner_join(dat.fib, by = "ID") %>%
+  select(-c(Exp, Count)) %>%
+  mutate(Sample = factor(Sample, levels = c("Ci", "TFi")),
+         Day = factor(Day, levels = c("4dpi", "7dpi", "14dpi", "21dpi")),
+         Marker = factor(Marker, levels = c("VIM", "SNAI"))) %>%
+  unique %>%
+  split(.$Sample)
+dat.fib$Marker = factor(paste0(dat.fib$Marker, "."), levels = c("VIM.", "SNAI."))
+dat.fib = split(dat.fib, dat.fib$Sample)
+
+#color palette
+my.pal = c("#b81f24", "#dd9fa5")
+my.pal.PCR.fill = c("VIM" = my.pal[1], "SNAI" = my.pal[2], "VIM." = "grey90", "SNAI." = "grey90")
+my.pal.PCR.col = c("VIM" = "black", "SNAI" = "black", "VIM." = "grey20", "SNAI." = "grey20")
+my.pal.PCR.shape = c("1" = 21, "2" = 21, "3" = 21)
+
+#plot
+ggplot(dat.fib.sum[[2]], aes(Day, Mean, fill = Marker, color = Marker)) +
+  geom_errorbar(aes(ymin = Mean - STDEV, ymax = Mean + STDEV, color = Marker),
+                stat = "identity", position = position_dodge(0.95), width = 0.7, size = 0.8) +
+  geom_bar(stat = "identity", position = position_dodge(0.95), width = 0.8, size = 0.8) +
+  geom_point(data = dat.fib[[2]], aes(Day, Count, fill = Marker, shape = as.factor(Exp)), 
+             color = "grey10", size = 3, position = position_dodge(0.95), stroke = 0.6) +
+  scale_fill_manual(values = my.pal.PCR.fill) +
+  scale_color_manual(values = my.pal.PCR.col) +
+  scale_shape_manual(values = my.pal.PCR.shape) +
+  scale_y_continuous(limits = c(0, 2), breaks = c(0, 1 , 2)) +
+  theme_jo()
+```
+
+##########################################################
+#################        FIGURE 1G       #################
+##########################################################
+
+```{r FIGURE S1G, warning=FALSE, message=FALSE, results='asis'}
+#----------------------------Figure1G--------------------------------
+#read data
+read.list = list()
+for (i in 1:4) {
+  read.list[[i]] = readex("neuron.profiling.xlsx", i)}
+
+dat.prof = read.list[[1]] %>%
+  mutate(Sample = factor(Sample, levels = c("Ci", "TFi")),
+         Day = factor(Day, levels = c("9dpi","21dpi")),
+         Marker = factor(Marker, levels = c("Neurite", "Branch")))
+dat.prof.sum = summarise(group_by(dat.prof, ID), Mean = mean(Count), STDEV = sd(Count)) %>%
+  inner_join(dat.prof, by = "ID") %>%
+  select(-c(Exp, Count)) %>%
+  mutate(Sample = factor(Sample, levels = c("Ci", "TFi")),
+         Day = factor(Day, levels = c("9dpi","21dpi")),
+         Marker = factor(Marker, levels = c("Neurite", "Branch"))) %>%
+  unique %>%
+  split(.$Day)
+dat.prof$Marker = factor(paste0(dat.prof$Marker, "."), levels = c("Neurite.", "Branch."))
+dat.prof = split(dat.prof, dat.prof$Day)
+
+#color palette
+my.pal = c("#b92025", "#0d6fbc")
+my.pal.PCR.fill = c("Ci" = my.pal[1], "TFi" = my.pal[2], "Ci." = "grey90", "TFi." = "grey90")
+my.pal.PCR.col = c("Ci" = "black", "TFi" = "black", "Ci." = "grey20", "TFi." = "grey20")
+my.pal.PCR.shape = c("1" = 21, "2" = 21, "3" = 21, "4" = 21, "5" = 21, "6" = 21)
+
+
+#plot
+ggplot(dat.prof.sum[[2]], aes(Group, Mean, fill = Sample, color = Sample)) +
+  geom_errorbar(aes(ymin = Mean - STDEV, ymax = Mean + STDEV, color = Sample),
+                stat = "identity", position = position_dodge(0.95), width = 0.7, size = 0.8) +
+  geom_bar(stat = "identity", position = position_dodge(0.95), width = 0.8, size = 0.8) +
+  geom_point(data = dat.prof[[2]], aes(Group, Count, fill = Sample, shape = as.factor(Exp)), 
+             color = "grey10", size = 3, position = position_dodge(0.95), stroke = 0.6) +
+  scale_fill_manual(values = my.pal.PCR.fill) +
+  scale_color_manual(values = my.pal.PCR.col) +
+  scale_shape_manual(values = my.pal.PCR.shape) +
+  ylim(c(0, 6)) +
+  theme_jo()
+
+dat.prof = read.list[[5]]
+
+x = dat.prof$Branch.Ci.21dpi
+y = dat.prof$Branch.TFi.21dpi
+
+var.test(x,y)
+t.test(x,y)
+
+```
+
+##########################################################
+#################        FIGURE 1I       #################
+##########################################################
+
+
+```{r FIGURE 1I, warning=FALSE, message=FALSE, results='asis'}
+#----------------------------Figure1F--------------------------------
+#read IF Time-course data
+read.list = list()
+for (i in 1:5){
+  read.list[[i]] = readex("IF.time.course.xlsx", i)}
+
+#read data
+dat.IF = read.list[[5]] %>%
+  mutate(Sample = factor(Sample, levels = c("Ci", "TFi")),
+         Marker = factor(Marker, levels = c("TUBB3", "SYN1", "GLUT", "GABA", "TH", "CHAT")))
+dat.IF.sum = summarise(group_by(dat.IF, ID), Mean = mean(Count), STDEV = sd(Count)) %>%
+  inner_join(dat.IF, by = "ID") %>%
+  select(-c(Exp, Count)) %>%
+  mutate(Sample = factor(Sample, levels = c("Ci", "TFi")),
+         Marker = factor(Marker, levels = c("TUBB3", "SYN1", "GLUT", "GABA", "TH", "CHAT"))) %>%
+  unique 
+dat.IF$Marker = factor(paste0(dat.IF$Marker, "."), levels = c("TUBB3.", "SYN1.", "GLUT.", "GABA.", "TH.", "CHAT."))
+
+#create color palette
+my.pal.IF.T.fill = c("Ci" = "#b92025", "TFi" = "#0d6fbc")
+my.pal.IF.T.col = c("Ci" = "grey20", "TFi" = "grey20", "Ci." = "grey20", "TFi." = "grey20")
+my.pal.IF.T.shape = c("1" = 21, "2" = 21, "3" = 21, "4" = 21)
+
+#plot
+ggplot(dat.IF.sum, aes(Group, Mean, fill = Sample, color = Sample)) +
+  geom_errorbar(aes(ymin = Mean - STDEV, ymax = Mean + STDEV, color = Sample),
+                stat = "identity", position = position_dodge(0.95), width = 0.7, size = 0.8) +
+  geom_bar(stat = "identity", position = position_dodge(0.95), width = 0.8, size = 0.8) +
+  geom_point(data = dat.IF, aes(Group, Count, fill = Sample, shape = as.factor(Exp)), 
+             color = "grey10", size = 3, position = position_dodge(0.95), stroke = 0.6) +
+  scale_fill_manual(values = my.pal.IF.T.fill) +
+  scale_color_manual(values = my.pal.IF.T.col) +
+  scale_shape_manual(values = my.pal.IF.T.shape) +
+  scale_x_continuous(breaks = c(1, 2, 3, 4, 5, 6), expand = c(0, 0.2)) +
+  scale_y_continuous(breaks = c(0, 30, 60, 90, 120), expand = c(0, 0), limits = c(0, 125)) +
+  theme_jo()
+
+
+dat.IF = read.list[[4]]
+
+x = dat.IF$TFi.ChAT
+y = dat.IF$Ci.ChAT
+
+var.test(x,y)
+t.test(x,y)
+```
